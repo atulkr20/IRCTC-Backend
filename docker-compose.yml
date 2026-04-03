@@ -1,0 +1,52 @@
+services:
+  user-service:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./user-service:/app
+    command: sh -c "npm install && node src/index.js"
+    ports:
+      - "4001:4001"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      PORT: 4001
+      DATABASE_URL: postgres://admin:irctcpass@postgres:5432/user_service_database
+      REDIS_URL: redis://:irctcpass@redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: irctcpass
+      POSTGRES_DB: user_service_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d user_service_database"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "irctcpass"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
